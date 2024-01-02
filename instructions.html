@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width">
+        <title>TP de Cryptographie: Signatures Numériques avec RSA</title>
+        <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script>
+        <link rel="stylesheet" href="ressources/main.css" type="text/css" media="screen, print" title="no title" charset="utf-8">
+        <link rel="stylesheet" href="ressources/pygments.css" type="text/css" media="all" title="no title" charset="utf-8">
+    </head>
+    <body>
+        <h1>TP de Cryptographie: Signatures Numériques avec RSA</h1>
+        
+        <p><i>Version du 2020-11-28 10:43:24</i></p>
+        
+        <div class="section" id="signatures-numeriques">
+<h1>Signatures Numériques</h1>
+<p>Une signature numérique est un petit morceau de données
+qui garantit l'authenticité d'un message.
+Plus exactement, une signature prouve que
+la personne ayant rédigé ce message
+est en possession d'une certaine <em>clé secrète</em>.</p>
+<p>Concrètement, si Alice veut envoyer un message <span class="docutils literal">M</span> à Bob et veut que Bob puisse être sûr de recevoir le bon message, Alice peut faire la chose suivante:</p>
+<ul class="simple">
+<li><p>créer une clé de signature <span class="docutils literal">K</span></p></li>
+<li><p>s'assurer que personne à part elle et Bob ne connaisse la clé</p></li>
+<li><p>créer une signature <span class="docutils literal">S</span> à partir du message <span class="docutils literal">M</span> et de la clé <span class="docutils literal">K</span></p></li>
+<li><p>envoyer le message <span class="docutils literal">M</span> avec sa signature <span class="docutils literal">S</span> à Bob</p></li>
+</ul>
+<p>Bob peut vérifier que la signature a été créée pour le message <span class="docutils literal">M</span> et avec la clé <span class="docutils literal">K</span>. Si Bob est certain que personne à part Alice et lui ne connaissent la clé <span class="docutils literal">K</span>, alors il peut être certain que le message <span class="docutils literal">M</span> a bien été envoyé à Alice.</p>
+<p>La méthode de signature numérique RSA, que l'on va étudier dans ce TP, est dite <em>à clé publique</em> (on peut aussi parler de <em>méthode asymétrique</em>). Cela veut dire que la clé permettant de <em>créer</em> des signatures n'est pas la même que celle permettant de <em>vérifier</em> des signatures. Dans notre exemple, cela veut dire que Alice peut rendre sa clé de vérification publique (tout le monde peut la voir), pour que tout le monde puisse la télécharger et vérifier que les messages qu'ils reçoivent censés venir d'Alice n'ont pas été écrits par quelqu'un d'autre. La clé de signature par contre, elle, doit rester secrète: quelqu'un qui réussirait à voler cette clé serait capable de signer des messages au nom d'Alice sans son accord !</p>
+<img alt="ressources/distrib_pub_key.svg" src="ressources/distrib_pub_key.svg" />
+</div>
+<div class="section" id="premiers-pas-avec-rsa">
+<h1>Premiers pas avec RSA</h1>
+<div class="section" id="signature">
+<h2>Signature</h2>
+<p>Dans la méthode de signature RSA on ne manipule que des nombres, donc pour l'instant nos « messages » ne seront que des nombres. On verra plus tard comment faire avec de « vrais » messages.
+Ouvrez un terminal python et créez une variable <span class="docutils literal">M</span> contenant le nombre <span class="docutils literal">42</span>:</p>
+<pre class="code python literal-block"><code><span class="n">M</span> <span class="o">=</span> <span class="mi">42</span></code></pre>
+<p><span class="docutils literal">M</span> sera notre « message », que Alice veut signer avec sa clé de signature, appelée aussi <em>clé privée</em>.
+La clé privée d'Alice se compose de deux nombres:</p>
+<ul class="simple">
+<li><p>l'<em>exposant privé</em>, noté <span class="math">\(D\)</span></p></li>
+<li><p>et le <em>modulus</em>, noté <span class="math">\(N\)</span></p></li>
+</ul>
+<p>Entrez dans votre terminal Python les valeurs suivantes pour <span class="math">\(D\)</span> et <span class="math">\(N\)</span> :</p>
+<pre class="code python literal-block"><code><span class="n">D</span> <span class="o">=</span> <span class="mi">107</span>
+<span class="n">N</span> <span class="o">=</span> <span class="mi">187</span></code></pre>
+<p>Voici comment Alice crée la signature <span class="math">\(S\)</span> du message <span class="math">\(M\)</span> avec sa clé:</p>
+<div class="math">
+\begin{equation*}
+S = M^D \bmod N
+\end{equation*}
+</div>
+<p>Faites faire ce calcul à Python en exécutant la commande suivante:</p>
+<pre class="code python literal-block"><code><span class="n">S</span> <span class="o">=</span> <span class="nb">pow</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span></code></pre>
+<p><em>Note: on pourrait aussi écrire</em> <span class="docutils literal">S = <span class="pre">M**D</span> % N</span>
+<em>mais plus tard on utilisera des grands nombres
+et seule la fonction</em> <span class="docutils literal">pow</span> <em>sera assez efficace pour cela.</em></p>
+<p>Vous pouvez demander à l'interpréteur Python de vous afficher la valeur de <span class="docutils literal">S</span>
+en appelant simplement la variable <span class="docutils literal">S</span>, c'est à dire en tapant la lettre « S » et appuyant sur « Entrée ». Vous devriez obtenir la valeur <span class="docutils literal">70</span>:</p>
+<pre class="code literal-block"><code>&gt;&gt;&gt; S
+70</code></pre>
+</div>
+<div class="section" id="verification-de-la-signature">
+<h2>Vérification de la Signature</h2>
+<p>Pour pouvoir vérifier les messages signés par Alice, Bob doit avoir téléchargé la clé publique d'Alice.
+Cette clé publique est constituée d'un <em>exposant public</em> noté <span class="math">\(E\)</span> et du modulus déjà présent dans la clé privée, <span class="math">\(N\)</span>. La seule partie véritablement « privée » de la clé privée est <span class="math">\(D\)</span> (souvenez-vous, la clé privée est <span class="math">\((D, N)\)</span>), mais <span class="math">\(N\)</span> est nécessaire à la fois pour la signature et pour la vérification.</p>
+<p>Voici l'exposant public d'Alice, entrez-le dans votre terminal Python:</p>
+<pre class="code python literal-block"><code><span class="n">E</span> <span class="o">=</span> <span class="mi">3</span></code></pre>
+<p>Bob peut maintenant vérifier l'authenticité du message <span class="docutils literal">M</span> qu'il a reçu, c'est à dire qu'il peut vérifier que la signature <span class="docutils literal">S</span> est bien une signature de <span class="docutils literal">M</span> faite par quelqu'un qui connaît la clé privée d'Alice (donc, à priori, par Alice).
+Il suffit à Bob de calculer ceci:</p>
+<div class="math">
+\begin{equation*}
+M_2 = S^E \bmod N
+\end{equation*}
+</div>
+<p>Puis de vérifier que <span class="math">\(M_2\)</span> soit égal au message <span class="math">\(M\)</span>.</p>
+<p>Faites ces deux opérations dans votre terminal Python:</p>
+<pre class="code python literal-block"><code><span class="n">M_2</span> <span class="o">=</span> <span class="nb">pow</span><span class="p">(</span><span class="n">S</span><span class="p">,</span> <span class="n">E</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">M_2</span> <span class="o">==</span> <span class="n">M</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">'signature valide: message authentique'</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">'SIGNATURE INVALIDE: MESSAGE NON AUTHENTIQUE !!!'</span><span class="p">)</span></code></pre>
+<p>Python devrait écrire <span class="docutils literal">signature valide: message authentique</span>.</p>
+<img alt="ressources/flot.svg" src="ressources/flot.svg" />
+</div>
+<div class="section" id="fonctions-python-pour-la-signature-et-la-verification">
+<h2>Fonctions Python pour la Signature et la Vérification</h2>
+<p>Ouvrez le fichier <span class="docutils literal">ma_solution.py</span>. Copiez-y le code suivant:</p>
+<pre class="code python literal-block"><code><span class="k">def</span> <span class="nf">signer_rsa</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">N</span><span class="p">):</span>
+    <span class="n">S</span> <span class="o">=</span> <span class="c1">#[À REMPLACER]#</span>
+    <span class="k">return</span> <span class="n">S</span>
+
+<span class="k">def</span> <span class="nf">signature_rsa_est_valide</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">E</span><span class="p">,</span> <span class="n">N</span><span class="p">):</span>
+    <span class="sd">'''renvoie « True » si S est une signature du message M
+    faite avec la clé privée correspondant à (E, N);
+    sinon, renvoie « False »'''</span>
+    <span class="n">M_2</span> <span class="o">=</span> <span class="c1">#[À REMPLACER]#</span>
+    <span class="k">if</span> <span class="n">M_2</span> <span class="o">==</span> <span class="n">M</span><span class="p">:</span>
+        <span class="k">return</span> <span class="c1">#[À REMPLACER]#</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="c1">#[À REMPLACER]#</span></code></pre>
+<p>Remplacez les blocs <span class="docutils literal">#[À REMPLACER]#</span> par le code nécessaire pour que les fonctions aient l'effet attendu.
+Ça ne devrait pas être très difficile: on vient de voir comment calculer <span class="docutils literal">S</span> et <span class="docutils literal">M_2</span>, et la documentation de la fonction <span class="docutils literal">signature_rsa_est_valide</span> explique ce que doit renvoyer la fonction dans chaque cas.</p>
+<p>Maintenant, testez le bon fonctionnement de vos fonctions:
+lancez votre fichier <span class="docutils literal">ma_solution.py</span>
+puis dans le terminal exécutez les commandes suivantes:</p>
+<pre class="code python literal-block"><code><span class="n">signature_rsa_est_valide</span><span class="p">(</span><span class="mi">42</span><span class="p">,</span> <span class="mi">70</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">187</span><span class="p">)</span>
+<span class="n">signature_rsa_est_valide</span><span class="p">(</span><span class="mi">45</span><span class="p">,</span> <span class="mi">70</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">187</span><span class="p">)</span></code></pre>
+<p>La première commande devrait renvoyer <span class="docutils literal">True</span>
+car ce sont les valeurs de M, S, E et N créées plus haut.
+La seconde devrait renvoyer <span class="docutils literal">False</span> car on a modifié le message original, 42, en 45.</p>
+<p>On a donc bien réussi à détecter que le message avait été modifié !</p>
+<p>Testons aussi notre fonction de signature en signant un message différent.
+Mettez un nouveau nombre dans la variable <span class="docutils literal">M</span>. Celui que vous voulez, du moment qu'il est compris entre 1 et <span class="math">\(N-1\)</span> (rappel: <span class="math">\(N = 187\)</span>). Créez aussi une variable <span class="docutils literal">faux_M</span> qui contient un <em>autre</em> nombre pris au hasard entre 1 et <span class="math">\(N-1\)</span>.</p>
+<p>Puis exécutez les commandes suivantes
+(on doit assigner <span class="docutils literal">D</span> et <span class="docutils literal">N</span> de nouveau
+parce qu'on a relancé Python
+et ils ne sont pas assignés dans <span class="docutils literal">ma_solution.py</span>):</p>
+<div class="system-message">
+<p class="system-message-title">System Message: ERROR/3 (<span class="docutils literal">/tmp/tp-rsa-instructions.rst</span>, line 157)</p>
+<p>Error in &quot;code&quot; directive:
+maximum 1 argument(s) allowed, 20 supplied.</p>
+<pre class="literal-block">.. code:: python
+    D = 107
+    N = 187
+    S = signer_rsa(M, D, N)
+    signature_rsa_est_valide(M, S, E, N)
+    signature_rsa_est_valide(faux_M, S, E, N)
+</pre>
+</div>
+<p>À nouveau, le premier appel à <span class="docutils literal">signature_rsa_est_valide</span> devrait renvoyer <span class="docutils literal">True</span> parce que le message est bien celui qu'on a signé,
+et le deuxième appel avec un message modifié devrait renvoyer <span class="docutils literal">False</span>.</p>
+</div>
+</div>
+<div class="section" id="generation-de-cles">
+<h1>Génération de clés</h1>
+<p>Pour l'instant les nombres <span class="math">\(E\)</span>, <span class="math">\(D\)</span> et <span class="math">\(N\)</span>
+qui constituent les clés de signature et de vérification
+ont été générés pour nous
+et nous ont été donné.
+Maintenant, nous allons voir comment générer nous-même notre paire de clés RSA.</p>
+<p>Voici comment générer une paire de clés RSA
+(c'est à dire une clé publique et sa clé privée correspondante):</p>
+<ul class="simple">
+<li><p>On choisit un exposant public <span class="math">\(E\)</span>.</p></li>
+<li><p>On choisit deux nombres premiers <span class="math">\(P\)</span> et <span class="math">\(Q\)</span></p></li>
+<li><p>Le modulus <span class="math">\(N\)</span> de notre paire de clé sera: <span class="math">\(N = P \times  Q\)</span></p></li>
+<li><p>on doit ensuite vérifier que <span class="math">\(E\)</span> est premier avec le nombre  <span class="math">\(\varphi (N) = (P-1)\times (Q-1)\)</span>
+Quelques explications pour les curieux:</p>
+<ul>
+<li><p><span class="math">\(\varphi (N)\)</span> se lit « phi de N »
+et représente la « fonction indicatrice d'Euler »
+(voir <a class="reference external" href="https://fr.m.wikipedia.org/wiki/Indicatrice_d%27Euler">Wikipedia: Indicatrice d'Euler</a>);</p></li>
+<li><p>Deux nombres sont dit « premiers entre eux »
+si leur seul diviseur commun est 1.</p></li>
+<li><p>Ce test est nécessaire pour permettre l'étape d'après ;
+pour ne pas compliquer les choses
+on ne vas pas expliquer pourquoi.</p></li>
+</ul>
+</li>
+<li><p>Enfin on trouve l'exposant privé <span class="math">\(D\)</span>
+en calculant l'inverse de <span class="math">\(E\)</span> modulo <span class="math">\(\varphi (N)\)</span>,
+c'est à dire tel que
+<span class="math">\(E\times D \bmod \varphi (N) = 1\)</span>
+(ce qui équivaut à ce que <span class="math">\(E\times D - 1\)</span> soit un multiple de <span class="math">\(\varphi (N)\)</span>).</p></li>
+</ul>
+<p>On a ainsi trois nombres <span class="math">\(E, D\)</span> et  <span class="math">\(N\)</span> tels que
+pour tout nombre <span class="math">\(M\)</span> compris entre 1 et <span class="math">\(N-1\)</span>,
+on ait:</p>
+<div class="math">
+\begin{equation*}
+(M^D)^E \bmod N = M
+\end{equation*}
+</div>
+<p>C'est cette propriété qui fait que la signature RSA fonctionne.
+Rappelez-vous, on a <span class="math">\(S = M^D \bmod N\)</span>.
+On a alors:</p>
+<div class="math">
+\begin{align*}
+S^E \bmod N &amp;= (M^D \bmod N)^E \bmod N \\
+            &amp;= (M^D)^E \bmod N \\
+            &amp;= M
+\end{align*}
+</div>
+<p>Ce qui est ce que l'on vérifiait pour la vérification de la signature.</p>
+<p>La <em>démonstration</em> de cette propriété est intéressante,
+mais pour ne pas trop rallonger le TP on ne la verra pas ici.
+Elle repose sur le théorème d'Euler
+(voir <a class="reference external" href="https://fr.m.wikipedia.org/wiki/Th%C3%A9or%C3%A8me_d%27Euler_(arithm%C3%A9tique)">Wikipedia: Théorème d'Euler (arithmétique)</a>).</p>
+<p>En pratique on ne va pas prendre E au hasard
+mais prendre une valeur fixe, disons <span class="math">\(E = 3\)</span>.
+Il se trouve que ça ne rend pas le système moins sécurisé,
+donc c'est une pratique courante.</p>
+<p>On veut écrire une fonction qui génère une paire de clés RSA
+suivant la méthode que l'on vient de décrire.
+Voici le code à copier à la fin de votre fichier <span class="docutils literal">ma_solution.py</span>:</p>
+<pre class="code python literal-block"><code><span class="c1"># voici des fonctions fournies par le fichier lib_tp_rsa.py</span>
+<span class="c1"># que l'on importe pour les utiliser dans notre fonction &quot;generer_cle_rsa&quot;</span>
+<span class="c1"># voir leur documentation dans le fichier lib_tp_rsa.py</span>
+<span class="kn">from</span> <span class="nn">lib_tp_rsa</span> <span class="kn">import</span> <span class="n">generer_premier</span><span class="p">,</span> <span class="n">sont_premiers_entre_eux</span><span class="p">,</span> <span class="n">inverse_modulo</span>
+
+<span class="k">def</span> <span class="nf">generer_cle_rsa</span><span class="p">():</span>
+    <span class="s2">&quot;génère une paire de clés RSA&quot;</span>
+    <span class="n">E</span> <span class="o">=</span> <span class="mi">3</span>
+
+    <span class="n">nombre_max_tentatives</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nombre_max_tentatives</span><span class="p">):</span>
+        <span class="n">P</span> <span class="o">=</span> <span class="c1">#[À REMPLACER]#</span>
+        <span class="n">Q</span> <span class="o">=</span> <span class="c1">#[À REMPLACER]#</span>
+
+        <span class="n">N</span> <span class="o">=</span> <span class="c1">#[À REMPLACER]#</span>
+        <span class="n">phi_N</span> <span class="o">=</span> <span class="c1">#[À REMPLACER]#</span>
+
+        <span class="k">if</span> <span class="p">(</span> <span class="n">P</span> <span class="o">!=</span> <span class="n">Q</span> <span class="ow">and</span> <span class="c1">#[À REMPLACER]# ):</span>
+            <span class="n">D</span> <span class="o">=</span> <span class="c1">#[À REMPLACER]#</span>
+
+            <span class="c1"># &quot;return&quot; va nous faire sortir de la fonction</span>
+            <span class="c1"># et donc de la boucle &quot;for&quot; aussi</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">E</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+
+    <span class="c1"># si on arrive là c'est que toutes les tentatives ont échoué</span>
+    <span class="c1"># (on n'a jamais atteint le &quot;return&quot;)</span>
+    <span class="c1"># donc on renvoie une Erreur avec &quot;raise Exception()&quot;</span>
+    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">'toutes les tentatives ont échoué'</span><span class="p">)</span></code></pre>
+<p>Encore une fois vous devez remplacer les blocs  <span class="docutils literal">#[À REMPLACER]#</span>.</p>
+<p>Pour vous simplifier la tâche, un fichier <span class="docutils literal">lib_tp_rsa.py</span>
+contient déjà des fonctions permettant de :</p>
+<ul class="simple">
+<li><p>générer des nombres premiers aléatoires (fonction <span class="docutils literal">generer_premier</span>)</p></li>
+<li><p>vérifier que deux nombres sont premiers entre eux (fonction <span class="docutils literal">sont_premiers_entre_eux</span>)</p></li>
+<li><p>calculer l'inverse d'un nombre modulo un autre nombre
+(fonction <span class="docutils literal">inverse_modulo</span>)</p></li>
+</ul>
+<p>Chaque fonction a une documentation détaillée
+qui devrait vous permettre de comprendre comment l'utiliser.</p>
+<p>Quand vous pensez avoir le bon code pour la fonction <span class="docutils literal">generer_cle_rsa</span>,
+lancez votre fichier <span class="docutils literal">ma_solution.py</span> et exécutez les commandes suivantes:</p>
+<pre class="code python literal-block"><code><span class="p">(</span><span class="n">E</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span> <span class="o">=</span> <span class="n">generer_cle_rsa</span><span class="p">()</span>
+<span class="n">M</span> <span class="o">=</span> <span class="mi">135</span> <span class="c1"># ou n'importe quel autre nombre entre 1 et N-1</span>
+<span class="n">faux_M</span> <span class="o">=</span> <span class="mi">28</span> <span class="c1"># un nombre différent de M</span>
+<span class="n">S</span> <span class="o">=</span> <span class="n">signer_rsa</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+<span class="n">signature_rsa_est_valide</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">E</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+<span class="n">signature_rsa_est_valide</span><span class="p">(</span><span class="n">faux_M</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">E</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span></code></pre>
+</div>
+<div class="section" id="signer-des-vrais-messages">
+<h1>Signer des « vrais » messages</h1>
+<p>En pratique, les messages à signer sont de la donnée, pas des nombres. Pour les signer, on utilise un « encodage » qui transforme cette donnée en nombre. À nouveau, on vous fourni dans le fichier <span class="docutils literal">lib_tp_rsa.py</span> la fonction <span class="docutils literal">encoder_msg_en_nombre</span> qui fait cet encodage.</p>
+<p>Copiez et complétez la fonction suivante dans votre fichier <span class="docutils literal">ma_solution.py</span>. Vous allez devoir faire appel à la fonction <span class="docutils literal">signer_rsa</span> que vous avez déjà écrite dans ce même fichier.</p>
+<pre class="code python literal-block"><code><span class="kn">from</span> <span class="nn">lib_tp_rsa</span> <span class="kn">import</span> <span class="n">encoder_msg_en_nombre</span>
+
+<span class="k">def</span> <span class="nf">signer_message_rsa</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">N</span><span class="p">):</span>
+    <span class="n">M</span> <span class="o">=</span> <span class="n">encoder_msg_en_nombre</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+    <span class="n">S</span> <span class="o">=</span> <span class="c1">#[À REMPLACER]#</span>
+    <span class="k">return</span> <span class="n">S</span></code></pre>
+<p>Faites de même pour cette fonction qui vérifie un message plutôt qu'un nombre:</p>
+<pre class="code python literal-block"><code><span class="k">def</span> <span class="nf">signature_message_rsa_est_valide</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">E</span><span class="p">,</span> <span class="n">N</span><span class="p">):</span>
+    <span class="n">M</span> <span class="o">=</span> <span class="c1">#[À REMPLACER]#</span>
+    <span class="k">if</span> <span class="c1">#[À REMPLACER]#:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span></code></pre>
+<p>On va encore une fois tester nos fonctions rapidement dans la console:</p>
+<pre class="code python literal-block"><code><span class="p">(</span><span class="n">E</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span> <span class="o">=</span> <span class="n">generer_cle_rsa</span><span class="p">()</span>
+<span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Bien sûr que oui !&quot;</span>
+<span class="n">faux_msg</span> <span class="o">=</span> <span class="s2">&quot;Bien sûr que non !&quot;</span>
+<span class="n">S</span> <span class="o">=</span> <span class="n">signer_message_rsa</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+<span class="n">signature_message_rsa_est_valide</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">E</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+<span class="n">signature_message_rsa_est_valide</span><span class="p">(</span><span class="n">faux_msg</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">E</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span></code></pre>
+</div>
+<div class="section" id="verifier-l-authenticite-des-messages-d-une-conversation">
+<h1>Vérifier l'Authenticité des Messages d'une Conversation</h1>
+<p>Le fichier <span class="docutils literal">conversation.json</span> contient des messages d'une conversation entre Alice et Bob. Chaque message est censé être signé. Les clés publiques de Alice et Bob sont dans le fichier <span class="docutils literal">clé_publiques_alice_et_bob.json</span>.</p>
+<p>On vous fournit dans <span class="docutils literal">lib_tp_rsa.py</span> des fonctions qui vont lire les données de ces fichiers et les transformer en variables Python.
+Voici comment les utiliser:</p>
+<pre class="code python literal-block"><code><span class="kn">from</span> <span class="nn">lib_tp_rsa</span> <span class="kn">import</span> <span class="n">charger_conversation_depuis_json</span><span class="p">,</span> <span class="n">charger_cles_depuis_json</span>
+
+<span class="n">liste_messages</span> <span class="o">=</span> <span class="n">charger_conversation_depuis_json</span><span class="p">(</span><span class="s1">'conversation.json'</span><span class="p">)</span>
+<span class="n">cles_publiques</span> <span class="o">=</span> <span class="n">charger_cles_depuis_json</span><span class="p">(</span><span class="s1">'cles_publiques_alice_et_bob.json'</span><span class="p">)</span></code></pre>
+<p>La variable <span class="docutils literal">liste_messages</span> est une liste dont chaque élément est un dictionaire représentant un message:</p>
+<pre class="code python literal-block"><code><span class="o">&gt;&gt;&gt;</span> <span class="n">liste_messages</span>
+<span class="p">[{</span><span class="s1">'expéditeur'</span><span class="p">:</span> <span class="s1">'Alice'</span><span class="p">,</span>
+  <span class="s1">'heure'</span><span class="p">:</span> <span class="s1">'10h31'</span><span class="p">,</span>
+  <span class="s1">'texte'</span><span class="p">:</span> <span class="s1">'Salut Bob, ça va ? Dis tu me dois toujours 20€ pour le resto.'</span><span class="p">,</span>
+  <span class="s1">'signature'</span><span class="p">:</span> <span class="mi">3066660173</span><span class="p">},</span>
+ <span class="p">{</span><span class="s1">'expéditeur'</span><span class="p">:</span> <span class="s1">'Bob'</span><span class="p">,</span>
+  <span class="s1">'heure'</span><span class="p">:</span> <span class="s1">'10h34'</span><span class="p">,</span>
+  <span class="s1">'texte'</span><span class="p">:</span> <span class="s2">&quot;Salut. Ah oui c'est vrai. Je peux te faire un virement ?&quot;</span><span class="p">,</span>
+  <span class="s1">'signature'</span><span class="p">:</span> <span class="mi">3191130941</span><span class="p">},</span>
+<span class="o">...</span>
+<span class="p">]</span></code></pre>
+<p>Chaque dictionaire peut être accédé par son numéro dans la liste (attention les listes commencent par le numéro zéro en Python, comme dans beaucoup d'autres languages informatiques)
+Voici comment on peut accéder aux variables contenues dans cette structure:</p>
+<pre class="code python literal-block"><code><span class="o">&gt;&gt;&gt;</span> <span class="n">liste_messages</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="p">{</span><span class="s1">'expéditeur'</span><span class="p">:</span> <span class="s1">'Alice'</span><span class="p">,</span>
+ <span class="s1">'heure'</span><span class="p">:</span> <span class="s1">'10h31'</span><span class="p">,</span>
+ <span class="s1">'texte'</span><span class="p">:</span> <span class="s1">'Salut Bob, ça va ? Dis tu me dois toujours 20€ pour le resto.'</span><span class="p">,</span>
+ <span class="s1">'signature'</span><span class="p">:</span> <span class="mi">3066660173</span><span class="p">}</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">liste_messages</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;expéditeur&quot;</span><span class="p">]</span>
+<span class="s1">'Alice'</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">liste_message</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;texte&quot;</span><span class="p">]</span>
+<span class="s1">'Salut Bob, ça va ? Dis tu me dois toujours 20€ pour le resto.'</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">liste_message</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="s2">&quot;signature&quot;</span><span class="p">]</span>
+<span class="mi">1930418289</span></code></pre>
+<p>Quand à la variable <span class="docutils literal">cles_publiques</span>,
+elle associe un nom d'expéditeur à sa clé publique <span class="docutils literal">(E, N)</span>:</p>
+<pre class="code python literal-block"><code><span class="o">&gt;&gt;&gt;</span> <span class="n">cles_publiques</span>
+<span class="p">{</span><span class="s1">'Alice'</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3456413371</span><span class="p">],</span> <span class="s1">'Bob'</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3223205851</span><span class="p">]}</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">cles_publiques</span><span class="p">[</span><span class="s2">&quot;Alice&quot;</span><span class="p">]</span>
+<span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3456413371</span><span class="p">]</span></code></pre>
+<p>À nouveau, copiez le code suivant à la fin de votre fichier <span class="docutils literal">ma_solution.py</span>
+et remplacez les blocs <span class="docutils literal">#[À REMPLACER]#</span>:</p>
+<pre class="code python literal-block"><code><span class="k">def</span> <span class="nf">conversation_authentifiee</span><span class="p">(</span><span class="n">liste_messages</span><span class="p">,</span> <span class="n">cles_publiques</span><span class="p">):</span>
+    <span class="c1"># cette variable stockera le texte a afficher</span>
+    <span class="n">resultat</span> <span class="o">=</span> <span class="nb">str</span><span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">liste_messages</span><span class="p">:</span>
+        <span class="n">heure</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s2">&quot;heure&quot;</span><span class="p">]</span>
+        <span class="n">exp</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s2">&quot;expéditeur&quot;</span><span class="p">]</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s2">&quot;texte&quot;</span><span class="p">]</span>
+        <span class="n">S</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="s2">&quot;signature&quot;</span><span class="p">]</span>
+
+        <span class="c1"># réfléchissez: quelle variable contient le nom de l'expéditeur</span>
+        <span class="c1"># dont on a besoin pour récupérer la clé publique ?</span>
+        <span class="n">E</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="n">cles_publiques</span><span class="p">[</span> <span class="c1">#[À REMPLACER]# ]</span>
+
+        <span class="k">if</span> <span class="c1">#[À REMPLACER]# :</span>
+            <span class="n">sig_valide</span> <span class="o">=</span> <span class="s2">&quot;OK&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sig_valide</span> <span class="o">=</span> <span class="s2">&quot;NON VALIDE !!!&quot;</span>
+
+        <span class="c1"># On ajoute le message au résultat</span>
+
+        <span class="n">resultat</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">'# </span><span class="si">{</span><span class="n">heure</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">exp</span><span class="si">}</span><span class="s1"> (signature </span><span class="si">{</span><span class="n">sig_valide</span><span class="si">}</span><span class="s1">):'</span>
+        <span class="c1"># ajoute un retour à la ligne</span>
+        <span class="n">resultat</span> <span class="o">+=</span> <span class="s1">'</span><span class="se">\n</span><span class="s1">'</span>
+        <span class="n">resultat</span> <span class="o">+=</span> <span class="n">msg</span>
+        <span class="n">resultat</span> <span class="o">+=</span> <span class="s1">'</span><span class="se">\n\n</span><span class="s1">'</span>
+
+    <span class="c1"># on fait un &quot;return&quot; du résultat plutôt qu'un &quot;print&quot;,</span>
+    <span class="c1"># c'est une bonne habitude à prendre quand on écrit des fonctions</span>
+    <span class="k">return</span> <span class="n">resultat</span></code></pre>
+<p>Quand c'est fait, lancez votre fichier <span class="docutils literal">ma_solution.py</span>
+et exécutez les commandes suivantes:</p>
+<pre class="code python literal-block"><code><span class="kn">from</span> <span class="nn">lib_tp_rsa</span> <span class="kn">import</span> <span class="n">charger_conversation_depuis_json</span><span class="p">,</span> <span class="n">charger_cles_depuis_json</span>
+
+<span class="n">liste_messages</span> <span class="o">=</span> <span class="n">charger_conversation_depuis_json</span><span class="p">(</span><span class="s1">'conversation.json'</span><span class="p">)</span>
+<span class="n">cles_publiques</span> <span class="o">=</span> <span class="n">charger_cles_depuis_json</span><span class="p">(</span><span class="s1">'clé_publiques_alice_et_bob.json'</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">conversation_authentifiee</span><span class="p">(</span><span class="n">messages</span><span class="p">,</span> <span class="n">cles_publiques</span><span class="p">))</span></code></pre>
+<p>Qu'observez-vous ? Essayez d'expliquer ce qui s'est passé.</p>
+</div>
+<div class="section" id="verifier-l-authenticite-de-veritables-certificats-sur-internet">
+<h1>Vérifier l'Authenticité de Véritables Certificats sur Internet !</h1>
+<p>RSA est toujours très utilisé pour sécuriser les communications sur Internet, et en particulier pour authentifier les <em>certificats</em> des sites web.</p>
+<p>Quand on va sur un site web,
+l'adresse du site commence soit par « http » ou par « https ».
+HTTPS est la version sécurisée du protocole HTTP.</p>
+<p>Quand votre ordinateur envoie une requête à un site web en utilisant le protocole HTTPS,
+le site web commence par envoyer son <em>certificat</em>.
+Ce certificat contient principalement la <em>clé publique</em> du site web,
+que votre ordinateur devra utiliser pour vérifier l'authenticité des pages web reçues de la part de ce site web.</p>
+<p>Mais il y a un problème:
+comment être sûr que le <em>certificat</em> que l'on reçoit soit lui-même authentique ?
+Si un adversaire a la possibilité de modifier les messages entre le site web et nous, il lui suffit de modifier ce premier message et de remplacer la clé publique par la sienne dans le certificat.
+Pour les plus curieux cela s'apelle <em>l'attaque de l'homme du milieu</em>
+(voir <a class="reference external" href="https://fr.m.wikipedia.org/wiki/Attaque_de_l'homme_du_milieu">Wikipedia: Attaque de l'homme du milieu</a>).</p>
+<p>La solution est la suivante : votre ordinateur possède déjà les clés publiques d'un certain nombre d'organisations appelées « autorités de certification ». La plupart du temps ces clés ont été installées par le fabricant de votre ordinateur avant de vous le livrer. L'administrateur d'un site web peut alors demander à l'une de ces autorités de lui signer son certificat, et il vous envoie cette signature en même temps que le certificat.</p>
+<p>Résumons :</p>
+<ul class="simple">
+<li><p>le site web vous envoie son certificat avec sa clé publique</p></li>
+<li><p>le certificat est signé par une autorité dont vous avez déjà la clé publique</p></li>
+<li><p>donc le certificat est authentique</p></li>
+<li><p>donc vous êtes sûr d'avoir la véritable clé publique du site web</p></li>
+<li><p>donc vous pouvez utiliser cette clé pour vérifier les pages web reçues par ce site web</p></li>
+</ul>
+<img alt="ressources/certificat.svg" src="ressources/certificat.svg" />
+<p>Assez parlé. Place à la pratique.</p>
+<p>Le fichier <span class="docutils literal">lib_tp_rsa.py</span> vous fourni la fonction <span class="docutils literal">recuperer_certificat</span> qui prend en paramètre le nom de domaine d'un site web et renvoie son certificat (qui est téléchargé via Internet, exactement comme le ferai votre navigateur web) ainsi que le certificat de l'autorité de certification qui a signé ce certificat-là. Voici comment l'appeler et stocker les deux certificats dans des variables séparées :</p>
+<pre class="code python literal-block"><code><span class="kn">from</span> <span class="nn">lib_tp_rsa</span> <span class="kn">import</span> <span class="n">recuperer_certificat</span>
+
+<span class="n">cert_site</span><span class="p">,</span> <span class="n">cert_autorite</span> <span class="o">=</span> <span class="n">recuperer_certificat</span><span class="p">(</span><span class="s2">&quot;python.org&quot;</span><span class="p">)</span></code></pre>
+<p>Quelques suggestions de noms de domaines qui devraient fonctionner:</p>
+<ul class="simple">
+<li><p><span class="docutils literal">python.org</span></p></li>
+<li><p><span class="docutils literal">google.com</span></p></li>
+<li><p><span class="docutils literal">wikipedia.org</span></p></li>
+<li><p><span class="docutils literal">linuxfoundation.org</span></p></li>
+<li><p><span class="docutils literal">ubuntu.com</span></p></li>
+<li><p><span class="docutils literal">cedricvanrompay.fr</span></p></li>
+</ul>
+<p><strong>Cette fois-ci c'est pour de vrai :</strong> Les certificats que vous récupérez avec cette fonction sont de vrai certificats, les nombres utilisés sont très grands pour des raisons de sécurité, et les certificats stockés dans les variables <span class="docutils literal">cert_site</span> et <span class="docutils literal">cert_autorite</span> ont une foule de paramètres, fonctions et autres que l'on ne va pas utiliser mais que l'on a laissé pour vous mettre en condition réelles.
+Si vous êtes curieux/se vous pouvez exécuter les commandes suivantes :</p>
+<ul class="simple">
+<li><p><span class="docutils literal">cert_site.issuer</span> renvoie un objet représentant l'autorité de certification qui a signé le certificat du site. L'objet est à un format un peu spécial qui n'est pas évident à manipuler ou à lire, mais on peut deviner la signification de certaines valeurs.</p></li>
+<li><p><span class="docutils literal">cert_site.signature_algorithm_oid</span> précise l'algorithme qui a été utilise pour créer la signature. Dans ce TP on ne va que manipuler des signatures faites avec l'algorithme <span class="docutils literal">sha256WithRSAEncryption</span>, dans lequel on reconnaît le mot « RSA ».</p></li>
+<li><p><span class="docutils literal"><span class="pre">cert_autorite.public_key().public_numbers()</span></span> contient les nombres <span class="math">\(E\)</span> et <span class="math">\(N\)</span> de la clé publique de l'autorité. Dans beaucoup de cas le nombre <span class="math">\(E\)</span> sera le même, typiquement 65537, on a déjà dit que c'était une pratique courante. Remarquez la taille impressionnante du nombre <span class="math">\(N\)</span> ! La raison à cela est que RSA n'est sécurisé que si <span class="math">\(N\)</span> est suffisamment grand pour qu'aucun ordinateur ne puisse retrouver les nombres premiers <span class="math">\(P\)</span> et <span class="math">\(Q\)</span> dont il est issu. Cette opération s'appelle la « factorisation » de <span class="math">\(N\)</span>. Or il y a eu de très importants progrès dans les algorithmes de factorisation, donc on doit utiliser des moduli de taille de plus en plus grande, ce qui pose un problème de performance.</p></li>
+</ul>
+<p>On va maintenant vérifier l'authenticité du certificat du site internet en utilisant la clé publique contenue dans le certificat de l'autorité de certification.</p>
+<p>Copier le code suivant à la fin de votre fichier <span class="docutils literal">ma_solution.py</span>
+et remplacez l'unique bloc <span class="docutils literal">#[À REMPLACER]#</span>:</p>
+<pre class="code python literal-block"><code><span class="k">def</span> <span class="nf">verifier_certificat_site</span><span class="p">(</span><span class="n">cert_site</span><span class="p">,</span> <span class="n">cert_autorite</span><span class="p">):</span>
+    <span class="c1"># la version &quot;à signer&quot; du certificat (notre &quot;message&quot;)</span>
+    <span class="c1"># (&quot;TBS&quot; est pour &quot;To Be Signed&quot;, &quot;À signer&quot; en anglais)</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="n">cert_site</span><span class="o">.</span><span class="n">tbs_certificate_bytes</span>
+
+    <span class="c1"># La signature du certificat du site</span>
+    <span class="n">S</span> <span class="o">=</span> <span class="n">cert_site</span><span class="o">.</span><span class="n">signature</span>
+    <span class="n">S</span> <span class="o">=</span> <span class="nb">int</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">S</span><span class="p">,</span> <span class="n">byteorder</span><span class="o">=</span><span class="s1">'big'</span><span class="p">)</span>
+
+    <span class="c1"># La clé publique de l'autorité que l'on va stocker dans deux variables N et E</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="n">cert_autorite</span><span class="o">.</span><span class="n">public_key</span><span class="p">()</span><span class="o">.</span><span class="n">public_numbers</span><span class="p">()</span><span class="o">.</span><span class="n">n</span>
+    <span class="n">E</span> <span class="o">=</span> <span class="n">cert_autorite</span><span class="o">.</span><span class="n">public_key</span><span class="p">()</span><span class="o">.</span><span class="n">public_numbers</span><span class="p">()</span><span class="o">.</span><span class="n">e</span>
+
+    <span class="c1"># À vous de jouer !</span>
+    <span class="c1"># vous avez déjà codé la fonction qu'il faut utiliser ici,</span>
+    <span class="c1"># il n'y a qu'à l'appeler avec les bons paramètres !</span>
+
+    <span class="k">if</span> <span class="c1">#[À REMPLACER]# :</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span></code></pre>
+<p>Vous pouvez alors vérifier l'authenticité de certificat que vous venez de télécharger:</p>
+<pre class="code python literal-block"><code><span class="k">if</span> <span class="n">verifier_certificat_site</span><span class="p">(</span><span class="n">cert_site</span><span class="p">,</span> <span class="n">cert_autorite</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">'Certificat valide.'</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">'CERTIFICAT INVALIDE !!!'</span><span class="p">)</span></code></pre>
+<p><strong>Fin du TP</strong></p>
+</div>
+<div class="section" id="bonus-casser-des-cles-rsa">
+<h1>BONUS: Casser des clés RSA !</h1>
+<p>Dans cette section bonus,
+pour comprendre pourquoi la signature RSA est sécurisée
+on va essayer justement de la casser.</p>
+<p>On se met dans le rôle d'un attaquant
+qui veut pouvoir signer des messages au nom d'Alice
+sans l'autorisation d'Alice.</p>
+<p>Voici notre stratégie:
+Alice a publié sur son site web sa clé publique
+constituée des nombres <span class="math">\(E\)</span> et <span class="math">\(N\)</span>.
+On cherche à calculer l'exposant secret <span class="math">\(D\)</span> de Alice
+à partir de ces nombres.
+Si on y arrive, on sera alors capable de créer des signatures au nom d'Alice
+en utilisant <span class="math">\(D\)</span> et <span class="math">\(N\)</span>,
+et le tour est joué !</p>
+<p>Pour rester concret,
+voici la clé publique dont on essaie de retrouver la clé privée:</p>
+<pre class="code python literal-block"><code><span class="n">E</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">N</span> <span class="o">=</span> <span class="mi">3399130201</span></code></pre>
+<p>Cette clé a été générée tout simplement
+en faisant appel à la fonction <span class="docutils literal">generer_cle_rsa()</span>
+que vous avez du créer pendant le TP,
+donc vous pouvez aussi en générer une vous-même
+sans regarder la valeur de <span class="math">\(D\)</span>.</p>
+<p>Donc, on veut retrouver la valeur de <span class="math">\(D\)</span>
+correspondant aux nombres précédents.
+Regardez plus haut dans le TP comment la valeur de <span class="math">\(D\)</span> était calculée:
+c'est l'inverse de <span class="math">\(E\)</span> modulo <span class="math">\(\varphi (N)\)</span>.</p>
+<p>C'est là que nos problèmes commencent en tant qu'attanquants:
+on connaît le nombre <span class="math">\(N\)</span>, mais pas <span class="math">\(\varphi (N)\)</span>.
+Quand on devait générer des clés,
+on avait calculé <span class="math">\(\varphi (N)\)</span> en faisant
+<span class="math">\((P-1) \times  (Q-1)\)</span> où <span class="math">\(P\)</span> et <span class="math">\(Q\)</span> sont les facteurs de <span class="math">\(N\)</span>,
+mais les nombres <span class="math">\(P\)</span> et <span class="math">\(Q\)</span> ne sont pas rendus publiques
+et ne sont pas connus par l'attaquant
+(et la raison devrait maintenant être évidente:
+donner <span class="math">\(P\)</span> et <span class="math">\(Q\)</span> revient à donner <span class="math">\(D\)</span>).</p>
+<p>On a déjà vu plus haut que cette fonction <span class="math">\(\varphi \)</span>
+s'appelle la « fonction indicatrice d'Euler ».
+Elle correspond à la quantité de nombres entre 1 et <span class="math">\(N\)</span>
+qui sont premiers avec <span class="math">\(N\)</span>.
+On a déjà vu que deux nombres sont premiers entre eux
+(on peut aussi dire qu'ils sont « co-premiers »)
+quand leur seul diviseur commun est le nombre 1.</p>
+<p>Du coup, est-ce qu'on ne peut pas calculer <span class="math">\(\varphi (N)\)</span>
+tout simplement à partir de <span class="math">\(N\)</span>,
+juste en comptant les nombres premiers avec <span class="math">\(N\)</span> un par un ?
+La réponse est oui, on peut.
+On pourrait faire notre attaque à partir de cette observation,
+mais on va prendre une autre approche qui utilise d'avantage des connaissances du lycée,
+et qui en plus est plus efficace.</p>
+<p>Souvenez-vous,
+si on trouve les nombres premiers <span class="math">\(P\)</span> et <span class="math">\(Q\)</span> tels que <span class="math">\(N = P\times Q\)</span>,
+alos on a <span class="math">\(\varphi (N)\)</span> (car <span class="math">\(\varphi (N) = (P-1) \times  (Q-1)\)</span>),
+ce qui nous donne <span class="math">\(D\)</span>, et on a réussi notre attaque.
+Une autre approche consiste donc à trouver les diviseurs de <span class="math">\(N\)</span>.
+Or comment trouve-t-on les diviseurs d'un nombre <span class="math">\(N\)</span> ?
+C'est quelque chose que vous devriez déjà savoir:
+on teste chaque nombre pour voir s'il divise <span class="math">\(N\)</span>,
+sauf qu'on n'a pas besoin de tester tous les nombres jusqu'à <span class="math">\(N-1\)</span>.
+Il y a une astuce : on peut s'arrêter à ... <span class="math">\(\sqrt{N}\)</span>.
+Cette astuce fait une sacrée différence:
+notre <span class="math">\(N\)</span> est de plusieurs milliards,
+alors que sa racine carrée est de « seulement » quelques dizaines de miliers !</p>
+<p>Voici notre stratégie pour la factorisation de <span class="math">\(N\)</span>:</p>
+<ul class="simple">
+<li><p>pour chaque nombre <span class="math">\(i\)</span> entre 2 et <span class="math">\(\sqrt{N}\)</span>:</p>
+<ul>
+<li><p>vérifier si le reste de la division de <span class="math">\(N\)</span> par <span class="math">\(i\)</span>
+est égal à zéro</p></li>
+<li><p>si c'est le cas,
+on a trouvé <span class="math">\(P\)</span> et <span class="math">\(Q\)</span>
+qui sont égaux à <span class="math">\(i\)</span> et <span class="math">\(\frac{N}{i}\)</span></p></li>
+</ul>
+</li>
+</ul>
+<p>Voici ce que ça donne en Python,
+avec encore des blocs à compléter:</p>
+<pre class="code python literal-block"><code><span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">sqrt</span>
+
+<span class="k">def</span> <span class="nf">factoriser</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="c1">#[À REMPLACER]#)):</span>
+        <span class="k">if</span> <span class="c1">#[À REMPLACER]#:</span>
+            <span class="n">P</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="n">Q</span> <span class="o">=</span> <span class="c1">#[À REMPLACER]#</span>
+            <span class="k">return</span> <span class="n">P</span><span class="p">,</span> <span class="n">Q</span></code></pre>
+<p>Avec <cite>sqrt</cite> qui est la fonction Python qui calcule la racine carrée
+(voir <a href="#id1"><span class="problematic" id="id2">`la documentation de cette fonction&lt;https://docs.python.org/3/library/math.html#math.sqrt&gt;`_</span></a>).</p>
+<p>Après avoir copié cette fonction dans votre fichier <span class="docutils literal">ma_solution.py</span>
+et l'avoir complété,
+utilisez-là pour factoriser le nombre <span class="math">\(N\)</span> de la clé que l'on essayait de casser,
+et stocker le résultat dans deux variables <span class="docutils literal">P</span> et <span class="docutils literal">Q</span>:</p>
+<pre class="code python literal-block"><code><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">Q</span><span class="p">)</span> <span class="o">=</span> <span class="n">factoriser</span><span class="p">(</span><span class="n">N</span><span class="p">)</span></code></pre>
+<p>À partir de là, ré-utilisez votre code du TP pour re-calculer <span class="math">\(D\)</span>
+maintenant que vous avez <span class="math">\(P\)</span> et <span class="math">\(Q\)</span>.</p>
+<p>Vous devriez obtenir la valeur suivante pour <span class="math">\(D\)</span>:</p>
+<pre class="code python literal-block"><code><span class="n">D</span> <span class="o">=</span> <span class="mi">2266009003</span></code></pre>
+<p>Mais alors ... est-ce que la signature RSA est sécurisée ou pas ?
+On vient de casser une clé RSA, après tout !
+La réponse est : RSA est sécurisé quand on utilise des clés assez grandes.
+Quand on génère des clés RSA avec des nombres <span class="math">\(P\)</span> et <span class="math">\(Q\)</span>
+suffisamment grand (donc <span class="math">\(N\)</span> est grand aussi),
+les opérations que doivent effectuer les « gentils »
+(signature et vérification)
+sont un peu plus longues à effectuer.
+Mais les opérations nécessaires pour <em>casser</em> une clé RSA
+(en gros, la factorisation de <span class="math">\(N\)</span>)
+demandent, elles, <em>beaucoup</em> plus de temps.</p>
+<p>Vous allez pouvoir vous en rendre compte vous-même.
+Il se trouve que la fonction <span class="docutils literal">generer_premier</span>
+fournie par la bibliothèque <span class="docutils literal">lib_tp_rsa.py</span>
+peut prendre un paramètre optionel
+indiquant la taille des nombres premiers qui doivent être générés.
+La taille est donnée en bits,
+donc <span class="docutils literal">generer_premier(22)</span> va générer un premier de 22 bits de longueur.
+Par défaut, quand votre code appelait cette fonction sans paramètres,
+les nombres premiers générés étaient de longueur 16 bits.</p>
+<p>Faites la chose suivante:</p>
+<ul class="simple">
+<li><p>généréz deux premiers <span class="docutils literal">P</span> et <span class="docutils literal">Q</span> de longueur 20 bits chacun</p></li>
+<li><p>calculer <span class="docutils literal">N = P*Q</span></p></li>
+<li><p>factorisez <span class="docutils literal">N</span></p></li>
+</ul>
+<p>Vous devriez remarquer un tout petit délai
+entre le moment ou vous appelez la fonction de factorisation
+et le moment ou vous avez la réponse.</p>
+<p>Refaites la même procédure mais avec <span class="docutils literal">P</span> et <span class="docutils literal">Q</span> de 24 bits de long.
+Cette fois-ci le délai devrait être beaucoup plus conséquent.</p>
+<p>Vous pouvez essayer avec des premiers de 26 voir 28 bits de long
+mais cela risque d'être très long.</p>
+<p>Voilà donc pourquoi casser de <em>véritables</em> clés RSA
+n'est pas aussi simple que ce que l'on vient de voir,
+et pourquoi RSA est en fait sécurisé:
+quand la puissance de calcul des ordinateurs augmente tellement
+que casser les clés actuelles risque de devenir faisable,
+on augmente très légèrement la taille des clés:
+RSA devient légèrement plus long à utiliser mais beaucoup plus difficile à casser.</p>
+<p>Pour information, la taille de clé recommandée aujourd'hui pour RSA
+est d'avoir un <span class="math">\(N\)</span> de ... 3072 bits
+(donc <span class="math">\(P\)</span> et <span class="math">\(Q\)</span> d'environ 1536 bits chacuns).</p>
+</div>
+<div class="system-messages section">
+<h1>Docutils System Messages</h1>
+<div class="system-message" id="id1">
+<p class="system-message-title">System Message: ERROR/3 (<span class="docutils literal">/tmp/tp-rsa-instructions.rst</span>, line 636); <em><a href="#id2">backlink</a></em></p>
+<p>Unknown target name: &quot;la documentation de cette fonction&lt;https://docs.python.org/3/library/math.html#math.sqrt&gt;&quot;.</p>
+</div>
+</div>
+
+    </body>
+</html>

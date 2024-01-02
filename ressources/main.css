@@ -1,0 +1,35 @@
+body {
+  max-width: 50em;
+  margin: auto;
+  padding: 10px;
+  font-family: Roboto, Tahoma, Ubuntu, sans-serif;
+}
+
+h1, h2 {
+  font-weight: normal;
+}
+
+.docutils.literal, pre.code {
+    font-family: "Ubuntu Mono", monospace;
+}
+
+.docutils.literal {
+  background-color: #F4F4F4;
+  padding: 0.05em 0.4em;
+  border: 1px solid #EEE;
+  overflow-wrap: break-word;
+}
+
+pre.code {
+  padding: 1em;
+  border: 1px solid #DDD;
+  overflow-x: scroll;
+}
+
+div > img {
+  display: block;
+  max-width: 90%;
+  margin: auto;
+  margin-top: 2em;
+  margin-bottom: 2em;
+}
