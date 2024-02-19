@@ -1,4 +1,4 @@
-# Découverte du mécanisme de signature numérique basée sur le chiffrement RSA en Python
+# Découverte du mécanisme de signature numérique basée sur le chiffrement RSA
 
 Ce projet consiste à explorer le mécanisme de signature numérique basée sur le chiffrement RSA en utilisant Python.
 
