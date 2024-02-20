@@ -19,7 +19,7 @@ L'objectif de ce projet est de comprendre le fonctionnement du chiffrement RSA e
 
 Avant de commencer, assurez-vous d'avoir les éléments suivants installés :
 
-- Python 3.x
+- Python 3
 - Bibliothèque Python `rsa` (installation via `pip install rsa`)
 - Bibliothèque Python `tlslite` (peut être installé via `pip install tlslite-ng`)
 
